@@ -1,29 +1,40 @@
-
 package com.jdbc;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import com.jdbc.dao.ConnectionFactory;
+import com.jdbc.dao.DAOException;
+import com.jdbc.view.MainFrame;
+
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 public class Main {
     public static void main(String[] args) {
-        String usuario = "root";
-        String senha = "Luizotavio@0307";
-        String url = "jdbc:mysql://localhost:3306/agendamento_barbearia";
+        SwingUtilities.invokeLater(() -> {
+            usarVisualNimbus();
+            try {
+                ConnectionFactory.testarConexao();
+            } catch (DAOException e) {
+                JOptionPane.showMessageDialog(null, e.getMessage()
+                                + "\n\nVerifique se o MySQL está em execução, se o script src/database/init.sql foi executado"
+                                + "\ne se usuário/senha em db.properties estão corretos.",
+                        "Falha na conexão", JOptionPane.ERROR_MESSAGE);
+                System.exit(1);
+            }
+            new MainFrame().setVisible(true);
+        });
+    }
 
-        String sql = "INSERT INTO cliente (nome, email, telefone) VALUES ('John Doe', 'john.doe@example.com', '1234567890')";
-        try (Connection conexao = DriverManager.getConnection(url, usuario, senha);
-            Statement stmt = conexao.createStatement()) {
-            System.out.println("Conexão ON");
-            int linhasAfetadas = stmt.executeUpdate(sql);
-
-            System.out.println("Registro inserido com sucesso!");
-            System.out.println("Linhas afetadas: " + linhasAfetadas);
-
-        } catch (SQLException e) {
-            System.out.println("Erro ao conectar ou executar SQL:");
-            System.out.println(e.getMessage());
+    private static void usarVisualNimbus() {
+        try {
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            // mantém o visual padrão do Swing
         }
     }
 }
