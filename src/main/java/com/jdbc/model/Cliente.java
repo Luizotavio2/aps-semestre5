@@ -1,18 +1,11 @@
 package com.jdbc.model;
 
-import java.time.LocalDateTime;
-import java.util.Objects;
-
 /** Cliente da barbearia. Relaciona-se com {@link Barbeiro} por meio de {@link Agendamento}. */
 public class Cliente {
     private Integer id;
     private String nome;
     private String telefone;
     private String email;
-    private LocalDateTime criadoEm;
-
-    public Cliente() {
-    }
 
     public Cliente(Integer id, String nome, String telefone, String email) {
         this.id = id;
@@ -53,25 +46,7 @@ public class Cliente {
         this.email = email;
     }
 
-    public LocalDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(LocalDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return this == o || (o instanceof Cliente outro && id != null && id.equals(outro.id));
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
-
-    /** Usado para exibir o cliente em listas e combos da interface. */
+    /** Texto exibido nas listas de seleção da interface. */
     @Override
     public String toString() {
         return nome + " - " + telefone;

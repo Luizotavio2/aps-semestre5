@@ -1,8 +1,15 @@
 # Barbearia – Sistema de Agendamentos
 
-Sistema desktop em **Java 17 + Swing** para gerenciar os agendamentos de uma barbearia,
-com persistência em **MySQL** e arquitetura **MVC + DAO**. Permite o CRUD completo de
-clientes, barbeiros e agendamentos.
+Sistema desktop em **Java 17 + Swing** para agendar horários em uma barbearia,
+com persistência em **MySQL** e arquitetura **MVC + DAO**.
+
+Ao abrir, o sistema pergunta **"Você é cliente ou barbeiro?"**:
+
+- **Cliente**: escolhe seu nome (ou faz um novo cadastro) e vê os seus agendamentos.
+  Pode agendar, remarcar e cancelar horários, editar seus dados e excluir a conta.
+- **Barbeiro**: escolhe seu nome (ou faz um novo cadastro) e vê a agenda da barbearia
+  (de todos ou só a sua), com busca e ordenação por dois critérios. Pode cancelar
+  agendamentos, editar seus dados e excluir a conta.
 
 ## Modelagem
 
@@ -13,20 +20,18 @@ clientes, barbeiros e agendamentos.
 │ id (PK)      │        │ id (PK)          │        │ id (PK)      │
 │ nome         │        │ cliente_id (FK)  │        │ nome         │
 │ telefone     │        │ barbeiro_id (FK) │        │ telefone     │
-│ email        │        │ inicio, fim      │        │ criado_em    │
-│ criado_em    │        │ servico, valor   │        └──────────────┘
-└──────────────┘        │ criado_em        │
+│ email        │        │ data_hora        │        └──────────────┘
+└──────────────┘        │ servico, valor   │
                         └──────────────────┘
 ```
 
 - **cliente** e **barbeiro** são as entidades; **agendamento** é a tabela associativa
-  que representa o relacionamento N:N entre elas (um cliente é atendido por vários
-  barbeiros e um barbeiro atende vários clientes).
+  (relacionamento N:N entre elas).
 - Todas as tabelas têm chave primária `id` (AUTO_INCREMENT).
 - As chaves estrangeiras usam `ON DELETE RESTRICT`: o banco impede excluir um cliente
-  ou barbeiro que ainda tenha agendamentos. A aplicação verifica isso antes e mostra
-  uma mensagem explicando o motivo.
-- `CHECK (fim > inicio)` e `CHECK (valor >= 0)` reforçam as regras no próprio banco.
+  ou barbeiro que ainda tenha agendamentos, e o sistema mostra uma mensagem explicando.
+- `UNIQUE (barbeiro_id, data_hora)` impede marcar dois clientes no mesmo horário
+  com o mesmo barbeiro.
 
 Cada tabela tem uma classe equivalente em `model`: `Cliente`, `Barbeiro` e
 `Agendamento` (que referencia um `Cliente` e um `Barbeiro`).
@@ -35,57 +40,43 @@ Cada tabela tem uma classe equivalente em `model`: `Cliente`, `Barbeiro` e
 
 ```
 src/main/java/com/jdbc
-├── Main.java                 inicia a aplicação e testa a conexão
-├── model/                    entidades (Cliente, Barbeiro, Agendamento)
-├── dao/                      acesso a dados (JDBC)
-│   ├── ConnectionFactory     cria conexões a partir de db.properties
-│   ├── DAO<T>                interface genérica do CRUD
-│   ├── ClienteDAO, BarbeiroDAO, AgendamentoDAO
-│   ├── Criterio              critério de ordenação (campo + direção)
-│   └── DAOException
-├── controller/               regras de negócio e validação das entradas
-│   ├── ClienteController, BarbeiroController, AgendamentoController
-│   ├── Validador             converte/valida nome, telefone, e-mail, datas, horas, valores
-│   └── ValidacaoException
-└── view/                     interface gráfica Swing
-    ├── MainFrame             janela com abas
-    ├── CrudPanel<T>          tela base: busca, ordenação, tabela e botões
-    ├── ClientePanel, BarbeiroPanel, AgendamentoPanel
-    ├── FormularioDialog      diálogo base de cadastro/edição
-    └── ClienteFormDialog, BarbeiroFormDialog, AgendamentoFormDialog
+├── Main.java            testa a conexão e abre a tela inicial
+├── model/               Cliente, Barbeiro, Agendamento
+├── dao/                 ConnectionFactory e um DAO por tabela (todo o SQL fica aqui)
+├── controller/          um controller por entidade + Validador (valida as entradas)
+└── view/
+    ├── TelaInicial      "Você é cliente ou barbeiro?"
+    ├── TelaCliente      área do cliente (agendar, remarcar, cancelar)
+    ├── TelaBarbeiro     agenda com busca e ordenação
+    └── Telas            mensagens, formulários e tabelas comuns às telas
 ```
 
-Fluxo: a **View** coleta o texto digitado e chama o **Controller**, que valida,
-converte para objetos do **Model** e chama o **DAO**, único responsável pelo SQL.
-Erros chegam à View como `ValidacaoException` (entrada inválida → aviso) ou
-`DAOException` (falha no banco → erro), sempre com mensagem amigável.
+Fluxo: a **View** coleta os dados digitados e chama o **Controller**, que valida,
+monta os objetos do **Model** e chama o **DAO**, único responsável pelo SQL.
+Entrada inválida gera `IllegalArgumentException` (mostrada como aviso) e falha no
+banco gera `SQLException` (mostrada como erro).
 
-## Funcionalidades (requisitos atendidos)
+## Requisitos atendidos
 
 | Requisito | Onde |
 |---|---|
-| Listar todos os dados | Cada aba lista todos os registros ao abrir (botão *Atualizar lista*) |
-| Ordenar por mais de um critério | "Ordenar por / depois por / depois por", cada um crescente ou decrescente (ex.: Barbeiro ↑, Valor ↓) |
-| Filtrar por busca | Campo *Buscar* (nome, telefone, e-mail, serviço) e, em agendamentos, período *De/Até* |
-| Adicionar | Botão *Novo* nas três abas |
-| Modificar | Botão *Editar* ou duplo clique (ex.: telefone do cliente, horário ou valor do agendamento) |
-| Excluir mantendo integridade | Botão *Excluir*; bloqueado para cliente/barbeiro com agendamentos |
-| Validação e tratamento de erros | Campos obrigatórios, nome só com letras, telefone com DDD (normalizado para `(11) 98765-4321`), e-mail, datas existentes, término após início, valor numérico não negativo, conflito de horário do barbeiro, falha de conexão |
-
-A ordenação é feita no SQL (`ORDER BY`) somente com campos de uma lista permitida,
-e todos os valores digitados vão por `PreparedStatement`, evitando injeção de SQL.
+| Listar todos os dados | Área do barbeiro: agenda com todos os agendamentos |
+| Ordenar por mais de um critério | Área do barbeiro: "Ordenar por" + "Depois por", cada um crescente ou decrescente |
+| Filtrar por busca | Área do barbeiro: busca por cliente, barbeiro ou serviço; opção "Somente os meus" |
+| Adicionar | Novo cadastro (cliente/barbeiro) e "Novo agendamento" |
+| Modificar | "Meus dados" (nome, telefone, e-mail) e "Remarcar" (barbeiro, serviço, data/hora) |
+| Excluir mantendo integridade | "Cancelar agendamento"; "Excluir conta" é bloqueado se houver agendamentos |
+| Validação e tratamento de erros | Nome, telefone com DDD, e-mail, data/hora existente e futura, horário ocupado, falha de conexão |
 
 ## Como executar
 
 Pré-requisitos: JDK 17+, Maven e MySQL 8.
 
-1. Crie o banco (com dados de exemplo):
+1. Crie o banco (com dados de exemplo). **Atenção:** o script apaga e recria o banco:
    ```bash
    mysql -u root -p < src/database/init.sql
    ```
 2. Ajuste usuário e senha em `src/main/resources/db.properties`
-   (ou crie um `db.properties` na pasta de onde o programa é executado, ou use
-   `-Ddb.usuario=... -Ddb.senha=...`).
 3. Compile e execute:
    ```bash
    mvn package

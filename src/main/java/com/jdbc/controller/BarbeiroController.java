@@ -1,31 +1,21 @@
 package com.jdbc.controller;
 
-import com.jdbc.dao.AgendamentoDAO;
 import com.jdbc.dao.BarbeiroDAO;
-import com.jdbc.dao.Criterio;
-import com.jdbc.dao.DAOException;
 import com.jdbc.model.Barbeiro;
 
+import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.List;
 
 public class BarbeiroController {
     private final BarbeiroDAO dao = new BarbeiroDAO();
-    private final AgendamentoDAO agendamentoDAO = new AgendamentoDAO();
 
-    public List<Barbeiro> listar(String filtro, List<Criterio> ordenacao) throws DAOException {
-        return dao.listar(filtro, ordenacao);
-    }
-
-    public List<Barbeiro> listarTodos() throws DAOException {
-        return dao.listar(null, null);
-    }
-
-    public List<String> camposOrdenacao() {
-        return dao.camposOrdenacao();
+    public List<Barbeiro> listarTodos() throws SQLException {
+        return dao.listarTodos();
     }
 
     /** Cadastra (id nulo) ou atualiza um barbeiro a partir dos dados digitados. */
-    public Barbeiro salvar(Integer id, String nome, String telefone) throws ValidacaoException, DAOException {
+    public Barbeiro salvar(Integer id, String nome, String telefone) throws SQLException {
         Barbeiro barbeiro = new Barbeiro(id, Validador.nome(nome), Validador.telefone(telefone));
         if (id == null) {
             dao.inserir(barbeiro);
@@ -35,13 +25,12 @@ public class BarbeiroController {
         return barbeiro;
     }
 
-    /** Exclui o barbeiro somente se não houver agendamentos vinculados (integridade da chave estrangeira). */
-    public void excluir(Barbeiro barbeiro) throws ValidacaoException, DAOException {
-        int agendamentos = agendamentoDAO.contarPorBarbeiro(barbeiro.getId());
-        if (agendamentos > 0) {
-            throw new ValidacaoException("Não é possível excluir " + barbeiro.getNome() + ": há " + agendamentos
-                    + " agendamento(s) vinculado(s) a este barbeiro.\nExclua ou transfira os agendamentos antes.");
+    /** O banco (ON DELETE RESTRICT) impede excluir um barbeiro que ainda tenha agendamentos. */
+    public void excluir(Barbeiro barbeiro) throws SQLException {
+        try {
+            dao.excluir(barbeiro.getId());
+        } catch (SQLIntegrityConstraintViolationException e) {
+            throw new IllegalArgumentException("Não é possível excluir a conta: ainda há agendamentos com você.");
         }
-        dao.excluir(barbeiro.getId());
     }
 }

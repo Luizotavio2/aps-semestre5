@@ -1,126 +1,62 @@
 package com.jdbc.controller;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
-import java.util.regex.Pattern;
 
-/** Converte e valida os textos digitados na interface. */
+/**
+ * Valida e converte os textos digitados na interface.
+ * Entradas inválidas geram IllegalArgumentException com uma mensagem para o usuário.
+ */
 final class Validador {
-    static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-    static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm").withResolverStyle(ResolverStyle.STRICT);
-
-    private static final Pattern NOME = Pattern.compile("[\\p{L} .'-]+");
-    private static final Pattern EMAIL = Pattern.compile("[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+");
-    private static final BigDecimal VALOR_MAXIMO = new BigDecimal("99999999.99");
+    static final DateTimeFormatter DATA_HORA =
+            DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm").withResolverStyle(ResolverStyle.STRICT);
 
     private Validador() {
     }
 
-    static String texto(String valor, String campo, int tamanhoMaximo) throws ValidacaoException {
-        String texto = valor == null ? "" : valor.trim().replaceAll("\\s+", " ");
-        if (texto.isEmpty()) {
-            throw new ValidacaoException("O campo \"" + campo + "\" é obrigatório.");
-        }
-        if (texto.length() > tamanhoMaximo) {
-            throw new ValidacaoException("O campo \"" + campo + "\" deve ter no máximo " + tamanhoMaximo + " caracteres.");
-        }
-        return texto;
-    }
-
-    static String nome(String valor) throws ValidacaoException {
-        String nome = texto(valor, "Nome", 256);
-        if (nome.length() < 2 || !NOME.matcher(nome).matches()) {
-            throw new ValidacaoException("Nome inválido: use ao menos 2 caracteres, apenas letras, espaços, ponto, apóstrofo ou hífen.");
+    static String nome(String valor) {
+        String nome = valor == null ? "" : valor.trim();
+        if (nome.length() < 2 || nome.length() > 100 || !nome.matches("[\\p{L} .'-]+")) {
+            throw new IllegalArgumentException("Nome inválido: use de 2 a 100 caracteres, apenas letras e espaços.");
         }
         return nome;
     }
 
     /** Aceita telefone com DDD em qualquer formato e devolve no padrão (11) 98765-4321. */
-    static String telefone(String valor) throws ValidacaoException {
+    static String telefone(String valor) {
         String digitos = valor == null ? "" : valor.replaceAll("\\D", "");
-        if (digitos.isEmpty()) {
-            throw new ValidacaoException("O campo \"Telefone\" é obrigatório.");
-        }
-        if ((digitos.length() != 10 && digitos.length() != 11) || digitos.charAt(0) == '0') {
-            throw new ValidacaoException("Telefone inválido: informe DDD + número (10 ou 11 dígitos), ex.: (11) 98765-4321.");
+        if (digitos.length() != 10 && digitos.length() != 11) {
+            throw new IllegalArgumentException("Telefone inválido: informe DDD + número, ex.: (11) 98765-4321.");
         }
         int meio = digitos.length() - 4;
         return "(" + digitos.substring(0, 2) + ") " + digitos.substring(2, meio) + "-" + digitos.substring(meio);
     }
 
-    /** E-mail opcional: devolve null se vazio. */
-    static String emailOpcional(String valor) throws ValidacaoException {
+    /** E-mail é opcional: devolve null se estiver vazio. */
+    static String email(String valor) {
         if (valor == null || valor.isBlank()) {
             return null;
         }
         String email = valor.trim();
-        if (email.length() > 256 || !EMAIL.matcher(email).matches()) {
-            throw new ValidacaoException("E-mail inválido. Exemplo de formato válido: nome@dominio.com");
+        if (email.length() > 100 || !email.matches("[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+")) {
+            throw new IllegalArgumentException("E-mail inválido, ex.: nome@dominio.com");
         }
         return email;
     }
 
-    static LocalDate data(String valor, String campo) throws ValidacaoException {
-        LocalDate data = dataOpcional(valor, campo);
-        if (data == null) {
-            throw new ValidacaoException("O campo \"" + campo + "\" é obrigatório.");
-        }
-        return data;
-    }
-
-    /** Data no formato dd/MM/aaaa; campos vazios (ou só com a máscara) resultam em null. */
-    static LocalDate dataOpcional(String valor, String campo) throws ValidacaoException {
-        if (semDigitos(valor)) {
-            return null;
-        }
+    /** Data e hora no formato dd/mm/aaaa hh:mm, que não pode estar no passado. */
+    static LocalDateTime dataHoraFutura(String valor) {
+        LocalDateTime dataHora;
         try {
-            return LocalDate.parse(valor.trim(), DATA);
+            dataHora = LocalDateTime.parse(valor == null ? "" : valor.trim(), DATA_HORA);
         } catch (DateTimeParseException e) {
-            throw new ValidacaoException("\"" + campo + "\" inválida: use o formato dd/mm/aaaa com uma data existente.");
+            throw new IllegalArgumentException("Data/hora inválida: use o formato dd/mm/aaaa hh:mm, ex.: 25/11/2026 14:30.");
         }
-    }
-
-    static LocalTime hora(String valor, String campo) throws ValidacaoException {
-        if (semDigitos(valor)) {
-            throw new ValidacaoException("O campo \"" + campo + "\" é obrigatório.");
+        if (dataHora.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Não é possível agendar em uma data/hora que já passou.");
         }
-        try {
-            return LocalTime.parse(valor.trim(), HORA);
-        } catch (DateTimeParseException e) {
-            throw new ValidacaoException("\"" + campo + "\" inválida: use o formato hh:mm (00:00 a 23:59).");
-        }
-    }
-
-    /** Valor monetário: aceita "45", "45,50", "1.234,56", "45.5" ou "R$ 45,00". */
-    static BigDecimal valor(String valor) throws ValidacaoException {
-        String texto = valor == null ? "" : valor.replace("R$", "").replace(" ", "").trim();
-        if (texto.isEmpty()) {
-            throw new ValidacaoException("O campo \"Valor\" é obrigatório.");
-        }
-        if (texto.contains(",")) {
-            texto = texto.replace(".", "").replace(',', '.');
-        }
-        BigDecimal numero;
-        try {
-            numero = new BigDecimal(texto);
-        } catch (NumberFormatException e) {
-            throw new ValidacaoException("Valor inválido: informe um número, ex.: 45,00");
-        }
-        if (numero.signum() < 0) {
-            throw new ValidacaoException("O valor não pode ser negativo.");
-        }
-        if (numero.compareTo(VALOR_MAXIMO) > 0) {
-            throw new ValidacaoException("O valor informado é muito alto.");
-        }
-        return numero.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private static boolean semDigitos(String valor) {
-        return valor == null || valor.chars().noneMatch(Character::isDigit);
+        return dataHora;
     }
 }
