@@ -1,24 +1,22 @@
 package com.jdbc.model;
 
-/** Cliente da barbearia. Relaciona-se com {@link Barbeiro} por meio de {@link Agendamento}. */
+/** Representa a tabela cliente. Relaciona-se com Barbeiro por meio de Agendamento. */
 public class Cliente {
-    private Integer id;
+    private int id; // 0 enquanto ainda não foi salvo no banco
     private String nome;
     private String telefone;
-    private String email;
 
-    public Cliente(Integer id, String nome, String telefone, String email) {
+    public Cliente(int id, String nome, String telefone) {
         this.id = id;
         this.nome = nome;
         this.telefone = telefone;
-        this.email = email;
     }
 
-    public Integer getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -26,29 +24,13 @@ public class Cliente {
         return nome;
     }
 
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
     public String getTelefone() {
         return telefone;
     }
 
-    public void setTelefone(String telefone) {
-        this.telefone = telefone;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    /** Texto exibido nas listas de seleção da interface. */
+    /** Texto mostrado nas listas de seleção. */
     @Override
     public String toString() {
-        return nome + " - " + telefone;
+        return nome;
     }
 }

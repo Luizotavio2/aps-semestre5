@@ -10,7 +10,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Acesso à tabela barbeiro. */
+/** Todo o SQL da tabela barbeiro. */
 public class BarbeiroDAO {
 
     public void inserir(Barbeiro barbeiro) throws SQLException {
@@ -20,31 +20,10 @@ public class BarbeiroDAO {
             stmt.setString(1, barbeiro.getNome());
             stmt.setString(2, barbeiro.getTelefone());
             stmt.executeUpdate();
-            try (ResultSet chave = stmt.getGeneratedKeys()) {
-                if (chave.next()) {
-                    barbeiro.setId(chave.getInt(1));
-                }
-            }
-        }
-    }
-
-    public void atualizar(Barbeiro barbeiro) throws SQLException {
-        String sql = "UPDATE barbeiro SET nome = ?, telefone = ? WHERE id = ?";
-        try (Connection con = ConnectionFactory.getConnection();
-             PreparedStatement stmt = con.prepareStatement(sql)) {
-            stmt.setString(1, barbeiro.getNome());
-            stmt.setString(2, barbeiro.getTelefone());
-            stmt.setInt(3, barbeiro.getId());
-            stmt.executeUpdate();
-        }
-    }
-
-    /** Lança SQLIntegrityConstraintViolationException se o barbeiro tiver agendamentos (chave estrangeira). */
-    public void excluir(int id) throws SQLException {
-        try (Connection con = ConnectionFactory.getConnection();
-             PreparedStatement stmt = con.prepareStatement("DELETE FROM barbeiro WHERE id = ?")) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+            // pega o id gerado pelo AUTO_INCREMENT
+            ResultSet chave = stmt.getGeneratedKeys();
+            chave.next();
+            barbeiro.setId(chave.getInt(1));
         }
     }
 

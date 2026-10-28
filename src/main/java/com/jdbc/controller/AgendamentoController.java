@@ -5,68 +5,64 @@ import com.jdbc.model.Agendamento;
 import com.jdbc.model.Barbeiro;
 import com.jdbc.model.Cliente;
 
-import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
 
+/** Valida os dados digitados na tela e chama o DAO. */
 public class AgendamentoController {
-    /** Serviços oferecidos e seus preços. */
-    public static final Map<String, BigDecimal> SERVICOS = new LinkedHashMap<>();
-
-    static {
-        SERVICOS.put("Corte", new BigDecimal("40.00"));
-        SERVICOS.put("Barba", new BigDecimal("30.00"));
-        SERVICOS.put("Corte + Barba", new BigDecimal("60.00"));
-        SERVICOS.put("Sobrancelha", new BigDecimal("20.00"));
-    }
-
-    /** Campos que o usuário pode escolher para ordenar a agenda. */
-    public static final String[] CAMPOS_ORDENACAO = AgendamentoDAO.CAMPOS_ORDENACAO;
+    public static final String[] SERVICOS = {"Corte", "Barba", "Corte + Barba", "Sobrancelha"};
+    public static final String[] ORDENACOES = {"Data/hora", "Cliente", "Barbeiro", "Serviço"};
+    private static final DateTimeFormatter FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final AgendamentoDAO dao = new AgendamentoDAO();
 
     public List<Agendamento> listarPorCliente(Cliente cliente) throws SQLException {
-        return dao.listarPorCliente(cliente.getId());
+        return dao.listarPorCliente(cliente);
     }
 
-    /** @param barbeiro se não for nulo, lista apenas os agendamentos desse barbeiro */
-    public List<Agendamento> listar(Barbeiro barbeiro, String busca, String ordem1, boolean decrescente1,
-                                    String ordem2, boolean decrescente2) throws SQLException {
-        return dao.listar(barbeiro == null ? null : barbeiro.getId(), busca, ordem1, decrescente1, ordem2, decrescente2);
+    public List<Agendamento> listar(String busca, String ordem1, String ordem2) throws SQLException {
+        return dao.listar(busca.trim(), ordem1, ordem2);
     }
 
-    /** Cadastra (id nulo) ou remarca um agendamento a partir dos dados digitados. */
-    public void salvar(Integer id, Cliente cliente, Barbeiro barbeiro, String dataHora, String servico)
-            throws SQLException {
+    /** Cria (id = 0) ou remarca um agendamento. */
+    public void salvar(int id, Cliente cliente, Barbeiro barbeiro, String servico, String dataHoraTexto)
+            throws Exception {
         if (barbeiro == null) {
-            throw new IllegalArgumentException("Selecione o barbeiro.");
+            throw new Exception("Selecione um barbeiro.");
         }
-        if (!SERVICOS.containsKey(servico)) {
-            throw new IllegalArgumentException("Selecione o serviço.");
-        }
-        LocalDateTime horario = Validador.dataHoraFutura(dataHora);
-        Agendamento agendamento = new Agendamento(id, cliente, barbeiro, horario, servico, SERVICOS.get(servico));
+        LocalDateTime dataHora;
         try {
-            if (id == null) {
+            dataHora = LocalDateTime.parse(dataHoraTexto.trim(), FORMATO);
+        } catch (DateTimeParseException e) {
+            throw new Exception("Data/hora inválida. Use o formato dd/mm/aaaa hh:mm, ex.: 25/11/2026 14:30");
+        }
+        if (dataHora.isBefore(LocalDateTime.now())) {
+            throw new Exception("Essa data/hora já passou.");
+        }
+
+        Agendamento agendamento = new Agendamento(id, cliente, barbeiro, dataHora, servico);
+        try {
+            if (id == 0) {
                 dao.inserir(agendamento);
             } else {
                 dao.atualizar(agendamento);
             }
         } catch (SQLIntegrityConstraintViolationException e) {
-            // chave única (barbeiro_id, data_hora): o barbeiro já está ocupado nesse horário
-            throw new IllegalArgumentException(barbeiro.getNome() + " já tem um agendamento nesse horário. Escolha outro.");
+            // a chave UNIQUE (barbeiro_id, data_hora) impede dois agendamentos no mesmo horário
+            throw new Exception(barbeiro.getNome() + " já tem um agendamento nesse horário.");
         }
     }
 
     public void excluir(Agendamento agendamento) throws SQLException {
-        dao.excluir(agendamento.getId());
+        dao.excluir(agendamento);
     }
 
+    /** Converte a data/hora para texto, ex.: 25/11/2026 14:30 */
     public static String formatar(LocalDateTime dataHora) {
-        return Validador.DATA_HORA.format(dataHora);
+        return dataHora.format(FORMATO);
     }
 }

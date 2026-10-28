@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.List;
 
+/** Valida os dados digitados na tela e chama o DAO. */
 public class ClienteController {
     private final ClienteDAO dao = new ClienteDAO();
 
@@ -14,10 +15,18 @@ public class ClienteController {
         return dao.listarTodos();
     }
 
-    /** Cadastra (id nulo) ou atualiza um cliente a partir dos dados digitados. */
-    public Cliente salvar(Integer id, String nome, String telefone, String email) throws SQLException {
-        Cliente cliente = new Cliente(id, Validador.nome(nome), Validador.telefone(telefone), Validador.email(email));
-        if (id == null) {
+    /** Cadastra (id = 0) ou atualiza um cliente. */
+    public Cliente salvar(int id, String nome, String telefone) throws Exception {
+        telefone = telefone.replaceAll("[^0-9]", ""); // deixa só os números
+        if (nome.isBlank()) {
+            throw new Exception("Informe o nome.");
+        }
+        if (telefone.length() < 10 || telefone.length() > 11) {
+            throw new Exception("Telefone inválido: informe DDD + número.");
+        }
+
+        Cliente cliente = new Cliente(id, nome.trim(), telefone);
+        if (id == 0) {
             dao.inserir(cliente);
         } else {
             dao.atualizar(cliente);
@@ -25,12 +34,12 @@ public class ClienteController {
         return cliente;
     }
 
-    /** O banco (ON DELETE RESTRICT) impede excluir um cliente que ainda tenha agendamentos. */
-    public void excluir(Cliente cliente) throws SQLException {
+    public void excluir(Cliente cliente) throws Exception {
         try {
-            dao.excluir(cliente.getId());
+            dao.excluir(cliente);
         } catch (SQLIntegrityConstraintViolationException e) {
-            throw new IllegalArgumentException("Não é possível excluir a conta: cancele seus agendamentos antes.");
+            // a chave estrangeira (ON DELETE RESTRICT) impede excluir quem tem agendamentos
+            throw new Exception("Não é possível excluir a conta: cancele seus agendamentos antes.");
         }
     }
 }

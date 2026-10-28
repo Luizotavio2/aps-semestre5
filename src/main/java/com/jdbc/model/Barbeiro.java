@@ -1,22 +1,22 @@
 package com.jdbc.model;
 
-/** Barbeiro que atende os clientes. Relaciona-se com {@link Cliente} por meio de {@link Agendamento}. */
+/** Representa a tabela barbeiro. Relaciona-se com Cliente por meio de Agendamento. */
 public class Barbeiro {
-    private Integer id;
+    private int id; // 0 enquanto ainda não foi salvo no banco
     private String nome;
     private String telefone;
 
-    public Barbeiro(Integer id, String nome, String telefone) {
+    public Barbeiro(int id, String nome, String telefone) {
         this.id = id;
         this.nome = nome;
         this.telefone = telefone;
     }
 
-    public Integer getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -24,19 +24,11 @@ public class Barbeiro {
         return nome;
     }
 
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
     public String getTelefone() {
         return telefone;
     }
 
-    public void setTelefone(String telefone) {
-        this.telefone = telefone;
-    }
-
-    /** Texto exibido nas listas de seleção da interface. */
+    /** Texto mostrado nas listas de seleção. */
     @Override
     public String toString() {
         return nome;
